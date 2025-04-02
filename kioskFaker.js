@@ -1,9 +1,18 @@
+function hideOverride(func, realFunc) {
+    Object.defineProperty(func, "toString", {
+        value: function() { return realFunc.toString(); },
+        writable: false,
+        configurable: false,
+        enumerable: false
+    });
+}
+
 const origlaunched = chrome.app.runtime.onLaunched.addListener;
 const origreload = chrome.app.runtime.onRestarted.addListener;
 const origmanifest = chrome.runtime.getManifest;
+const origfetch = window.fetch;
 
 let manifestcontent = JSON.parse(JSON.stringify(origmanifest()));
-
 if (manifestcontent.background && Array.isArray(manifestcontent.background.scripts)) {
     manifestcontent.background.scripts = manifestcontent.background.scripts.filter(script => script !== "kioskFaker.js");
 }
@@ -22,20 +31,19 @@ chrome.app.runtime.onRestarted.addListener = function(listener) {
     });
 };
 
-window.fetch = new Proxy(window.fetch, {
-  apply(target, thisArg, args) {
+window.fetch = function(...args) {
     if (args[0].includes("manifest.json")) {
-      let fakeManifest = manifestcontent;
-      return Promise.resolve(new Response(JSON.stringify(fakeManifest), {
-        headers: { "Content-Type": "application/json" }
-      }));
+        return Promise.resolve(new Response(JSON.stringify(manifestcontent), {
+            headers: { "Content-Type": "application/json" }
+        }));
     }
-    return Reflect.apply(target, thisArg, args);
-  }
-});
+    return origfetch(...args);
+};
 
-chrome.runtime.getManifest = new Proxy(chrome.runtime.getManifest, {
-  apply(target, thisArg, args) {
+hideOverride(window.fetch, origfetch);
+
+chrome.runtime.getManifest = function() {
     return manifestcontent;
-  }
-});
+};
+
+hideOverride(chrome.runtime.getManifest, origmanifest);

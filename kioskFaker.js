@@ -2,7 +2,6 @@ const origlaunched = chrome.app.runtime.onLaunched.addListener;
 const origreload = chrome.app.runtime.onRestarted.addListener;
 const origmanifest = chrome.runtime.getManifest;
 
-// Create a shallow copy to avoid modifying the original manifest
 let manifestcontent = JSON.parse(JSON.stringify(origmanifest()));
 
 if (manifestcontent.background && Array.isArray(manifestcontent.background.scripts)) {
@@ -37,9 +36,6 @@ window.fetch = new Proxy(window.fetch, {
 
 chrome.runtime.getManifest = new Proxy(chrome.runtime.getManifest, {
   apply(target, thisArg, args) {
-    console.log("🕵️‍♂️ Spoofing chrome.runtime.getManifest()");
     return manifestcontent;
   }
 });
-
-// ✅ kioskFaker.js successfully loaded and running!

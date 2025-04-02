@@ -1,10 +1,20 @@
 function hideOverride(func, realFunc) {
-    Object.defineProperty(func, "toString", {
-        value: function() { return realFunc.toString(); },
+    const proxy = new Proxy(func, {
+        apply(target, thisArg, args) {
+            return Reflect.apply(realFunc, thisArg, args);
+        }
+    });
+
+    Object.defineProperty(proxy, "toString", {
+        value: function() {
+            return `function ${realFunc.name || 'anonymous'}() { [native code] }`;
+        },
         writable: false,
         configurable: false,
         enumerable: false
     });
+
+    return proxy;
 }
 
 const origlaunched = chrome.app.runtime.onLaunched.addListener;
@@ -40,10 +50,5 @@ window.fetch = function(...args) {
     return origfetch(...args);
 };
 
-hideOverride(window.fetch, origfetch);
-
-chrome.runtime.getManifest = function() {
-    return manifestcontent;
-};
-
-hideOverride(chrome.runtime.getManifest, origmanifest);
+window.fetch = hideOverride(window.fetch, origfetch);
+chrome.runtime.getManifest = hideOverride(chrome.runtime.getManifest, origmanifest);
